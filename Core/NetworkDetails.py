@@ -1,41 +1,53 @@
 import socket
 from scapy.layers.l2 import Ether, ARP
+from scapy.all import get_if_addr, conf
 from scapy.sendrecv import srp
 from mac_vendor_lookup import MacLookup
 from collections import defaultdict
+import psutil
+import ipaddress
+import netifaces
+from Core.utils.Display import display_network_results
 
+def get_interface_cidr(iface_name):
+    # Search Scapy's IPv4 routing table for this interface
+    for network, netmask, _, iface, _, _ in conf.route.routes:
+        if iface == iface_name:
+            cidr_bits = ipaddress.IPv4Network(f"0.0.0.0/{netmask}").prefixlen
+            return cidr_bits
+            
+    raise ValueError(f"Interface {iface_name} has no valid routes.")
 
-def subnetMask(localip):
-    subRange = int(localip[0:3])
-    if subRange < 127:
-        return 8
-    elif subRange < 191:
-        return 16
-    elif subRange < 223:
-        return 24
-    else:
-        return "Class D or E" 
-
+def netWorkInterfaces():
+    ilist = []
+    interfaces = psutil.net_if_addrs().keys()
+    return list(interfaces)
 
 def hostDiscovery(ipaddress, subnetMask):
     iplisting = []
     ip = ipaddress.split('.')
-    if subnetMask == 24:
-        packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=f"{ip[0]}.{ip[1]}.{ip[2]}.0/24")
-        result = srp(packet, timeout=3, verbose=False)[0]
-        i=0
-        for sent, received, in result:
-            print(f"{i+1}) IP: {received.psrc}, MAC: {received.hwsrc}", end=" ")
-            i +=1
-            iplisting.append(f"{received.psrc},{received.hwsrc}")
-            try:
-                print(f"Vendor: {MacLookup().lookup(received.hwsrc)}")
-            except:
-                print("Unknown")
-        return iplisting
-def main():
-    hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
-    submask = subnetMask(local_ip)
-    return hostDiscovery(local_ip, submask)
+    packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=f"{ip[0]}.{ip[1]}.{ip[2]}.0/{subnetMask}")
+    result = srp(packet, timeout=3, verbose=False)[0]
+    for sent, received in result:
+        try:
+            vendor = MacLookup().lookup(received.hwsrc)
+        except:
+            vendor = "Unknown"
+        iplisting.append(f"{received.psrc},{received.hwsrc},{vendor}")
+
+    display_network_results(iplisting,ipaddress,subnetMask)
+    return iplisting
+
+def main(netInterface):
+    print(f"Scanning for active host in: {netInterface}")
+    #Host id (This systsem)
+    HostIP_address = netifaces.ifaddresses(netInterface)
+
+    #Subnet mask in cidr form 
+    ipv4_info = HostIP_address[netifaces.AF_INET][0]
+    netmask = ipv4_info['netmask']
+    cidr_bits = ipaddress.IPv4Network(f"0.0.0.0/{netmask}").prefixlen
+
+    # print(f"Host ip: {ipv4_info['addr']}, Cidr Notation: {cidr_bits}")
+    return hostDiscovery(ipv4_info['addr'],cidr_bits)
 
