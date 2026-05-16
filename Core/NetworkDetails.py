@@ -1,6 +1,8 @@
-from .Hostdiscovery import main as discorvery
 import socket
-import ipaddress
+from scapy.layers.l2 import Ether, ARP
+from scapy.sendrecv import srp
+from mac_vendor_lookup import MacLookup
+from collections import defaultdict
 
 
 def subnetMask(localip):
@@ -14,10 +16,26 @@ def subnetMask(localip):
     else:
         return "Class D or E" 
 
+
+def hostDiscovery(ipaddress, subnetMask):
+    iplisting = []
+    ip = ipaddress.split('.')
+    if subnetMask == 24:
+        packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=f"{ip[0]}.{ip[1]}.{ip[2]}.0/24")
+        result = srp(packet, timeout=3, verbose=False)[0]
+        i=0
+        for sent, received, in result:
+            print(f"{i+1}) IP: {received.psrc}, MAC: {received.hwsrc}", end=" ")
+            i +=1
+            iplisting.append(f"{received.psrc},{received.hwsrc}")
+            try:
+                print(f"Vendor: {MacLookup().lookup(received.hwsrc)}")
+            except:
+                print("Unknown")
+        return iplisting
 def main():
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
     submask = subnetMask(local_ip)
-    # print("local ip : ",local_ip,"\nsubnetmask : ",submask)
-    discorvery(local_ip,submask)
+    return hostDiscovery(local_ip, submask)
 
