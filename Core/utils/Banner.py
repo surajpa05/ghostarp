@@ -120,6 +120,7 @@ def randombanner():
     print()
     # Display description in an aesthetic box
     description = "GhostARP is a Layer 2 packet manipulation and network discovery tool focused on ARP behavior, Ethernet communication, and local network experimentation."
+    author_info = "Author: Suraj P A | GitHub: https://github.com/SurajPa05"
     
     # Word wrap the description to fit terminal width with padding
     max_text_width = min(width - 8, 100)  # Leave room for box borders and padding
@@ -139,6 +140,10 @@ def randombanner():
     
     if current_line:
         lines.append(" ".join(current_line))
+    
+    # Add author info as a separate line
+    lines.append("")  # blank line for spacing
+    lines.append(author_info)
     
     # Find the longest line for box width
     box_width = max(len(line) for line in lines) + 4

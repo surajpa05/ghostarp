@@ -2,21 +2,19 @@ import shutil
 from scapy.all import get_if_addr, conf
 
 
-def display_network_results(active_ips, local_ip=None, subnet_mask=None):
-    """Display network scan results in a formatted box"""
-    
+def render_network_results(active_ips, local_ip=None, subnet_mask=None):
+    """Render network scan results into a list of strings (does not print)."""
+
     width = shutil.get_terminal_size().columns
-    
-    # Get the same box width as the description box from Banner.py
+
     description = "GhostARP is a Layer 2 packet manipulation and network discovery tool focused on ARP behavior, Ethernet communication, and local network experimentation."
     max_text_width = min(width - 8, 100)
-    
-    # Calculate box width (same logic as Banner.py)
+
     words = description.split()
     lines = []
     current_line = []
     current_length = 0
-    
+
     for word in words:
         if current_length + len(word) + len(current_line) <= max_text_width:
             current_line.append(word)
@@ -25,57 +23,54 @@ def display_network_results(active_ips, local_ip=None, subnet_mask=None):
             lines.append(" ".join(current_line))
             current_line = [word]
             current_length = len(word)
-    
+
     if current_line:
         lines.append(" ".join(current_line))
-    
+
     box_width = max(len(line) for line in lines) + 4
-    
-    # Prepare local IP info
+
     if local_ip is None:
         local_ip = get_if_addr(conf.iface)
-    
-    # Build header lines
+
     content_lines = [
         f"Local IP: {local_ip}",
         f"Subnet Mask: /{subnet_mask}" if subnet_mask else "",
         f"Active Hosts: {len(active_ips)}",
     ]
-    
-    # Parse devices to find max widths for alignment
+
     devices = []
     for device_info in active_ips:
         parts = device_info.split(',')
         if len(parts) == 3:
             ip, mac, vendor = parts
             devices.append((ip, mac, vendor))
-    
-    # Calculate column widths
+
     max_ip_len = max(len(d[0]) for d in devices) if devices else 15
     max_mac_len = max(len(d[1]) for d in devices) if devices else 17
-    
-    # Add device list with aligned columns
+
     for i, (ip, mac, vendor) in enumerate(devices, 1):
-        # Format with fixed spacing between columns
         line = f"{i})  {ip:<{max_ip_len}}    {mac:<{max_mac_len}}    {vendor}"
-        
-        # Truncate if too long to fit in box
         max_line_length = box_width - 4
         if len(line) > max_line_length:
             line = line[:max_line_length - 3] + "..."
-        
         content_lines.append(line)
-    
-    # Print the box (left-aligned)
-    print("┌" + "─" * (box_width - 2) + "┐")
-    
+
+    output = []
+    output.append("┌" + "─" * (box_width - 2) + "┐")
     for line in content_lines:
-        if line:  # Skip empty lines
+        if line:
             padding = box_width - len(line) - 4
-            print("│ " + line + " " * padding + " │")
-    
-    print("└" + "─" * (box_width - 2) + "┘")
-    print()
+            output.append("│ " + line + " " * padding + " │")
+    output.append("└" + "─" * (box_width - 2) + "┘")
+    output.append("")  # blank line after box
+
+    return output
+
+
+def display_network_results(active_ips, local_ip=None, subnet_mask=None):
+    """Display network scan results in a formatted box"""
+    for line in render_network_results(active_ips, local_ip, subnet_mask):
+        print(line)
 
 
 def display_interfaces(availInterface):

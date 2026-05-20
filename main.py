@@ -4,8 +4,21 @@ from collections import defaultdict
 from Core.utils.Banner import randombanner as banner
 from Core.utils.Display import display_interfaces
 from scapy.all import get_if_addr, conf
+import os
 
 from InquirerPy import inquirer
+RED   = "\033[1;91m"
+RESET = "\033[0m"
+
+CURSOR_UP   = "\033[{}A"  
+ERASE_LINE  = "\033[2K"   
+
+def reprint_table(rendered_lines, previous_line_count):
+    if previous_line_count > 0:
+        for _ in range(previous_line_count):
+            print(CURSOR_UP.format(1) + ERASE_LINE, end="")
+    for line in rendered_lines:
+        print(line)
 
 def option_menu():
     choice = inquirer.select(
@@ -20,50 +33,62 @@ def option_menu():
     return choice
 
 def main():
-    banner()
-    #Choose a network interface
     selectedInterface = 0
-    availInterface,availTargetlist = "",""
+    availInterface, availTargetlist = "", ""
+    network_table   = []  
     try:
         while True:
+            os.system("clear")
+            banner()
+
+            if network_table:
+                for line in network_table:
+                    print(line)
+
             choice = option_menu()
-            if (choice == "interface"):
+
+            if choice == "interface":
                 availInterface = netWorkInterfaces()
                 display_interfaces(availInterface)
-                selectedInterface = int(input("Choose an interface: "))
-
-            elif(choice == "scan"):
-                print(f"Scanning for host in {availInterface[selectedInterface-1]}")
                 try:
-                    if selectedInterface > 0 and selectedInterface <= len(availInterface):
-                        availTargetlist = GetNetwork(availInterface[selectedInterface-1])
-                except:
-                    print("Error occured while scanning")
-                    
+                    selectedInterface = int(input("Choose an interface: "))
+                except ValueError:
+                    print(f"\n{RED}Invalid input{RESET}\n")
 
-            elif(choice == "exploit"):
-                target = int(input("Choose a target from the above listing: "))
+            elif choice == "scan":
+                try:
+                    print(f"Scanning for host in {availInterface[selectedInterface-1]}")
+                    if selectedInterface > 0 and selectedInterface <= len(availInterface):
+                        availTargetlist, network_table = GetNetwork(availInterface[selectedInterface-1])
+                except (IndexError, TypeError):
+                    print(f"\n{RED}Select a valid interface first.{RESET}\n")
+                    input("Press Enter to continue...")
+                except PermissionError:
+                    print(f"\n{RED}Permission denied. Run as root.{RESET}\n")
+                    input("Press Enter to continue...")
+                except OSError as e:
+                    print(f"\n{RED}Scan failed: {e}{RESET}\n")
+                    input("Press Enter to continue...")
+
+            elif choice == "exploit":
+                try:
+                    target = int(input("Choose a target from the above listing: "))
+                except ValueError:
+                    print(f"\n{RED}Enter a valid number.{RESET}\n")
+                    input("Press Enter to continue...")
+                    continue
                 try:
                     attackTarget(availTargetlist[target-1])
-                except:
-                    print("Invalid target or errror occured while exploiting !")
+                except (IndexError, TypeError):
+                    print(f"\n{RED}Invalid target. Run a network scan first and choose a valid target number.{RESET}\n")
+                    input("Press Enter to continue...")
 
-            elif(choice == "exit"):
+            elif choice == "exit":
                 print("Exiting GhostARP")
                 exit()
-    except:
+    except KeyboardInterrupt:
         print("Exiting GhostARP")
-        exit();
+        exit()
 
-        # while True:
-        #     
-        #         
-        #         
-        #         # 
-        #        
-        #         #print(availTargetlist[target-1])
-        #         
-        #     else:
-        #         print("Invlid input !")
 if __name__ == "__main__":
     main()

